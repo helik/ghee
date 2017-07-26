@@ -6,7 +6,9 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-type Gheefile struct {
+type Gheefile []GheeResource
+
+type GheeResource struct {
 	Manifest interface{}
 	Clusters []string
 	Replicas map[string]int
