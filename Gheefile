@@ -1,0 +1,7 @@
+- manifest: <k8s manifest>
+  clusters:
+  - arya-20
+  - flitwick-22
+  replicas:
+    arya-20: 2
+    flitwick-22: 1
