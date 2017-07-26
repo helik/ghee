@@ -13,15 +13,12 @@ import (
 var createCmd = &cobra.Command{
 	Use:   "create [path to Gheefile]",
 	Short: "Create a resource",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Long: `Creates resources according to a specified Gheefile. It takes one positional argument: a path to a Gheefile. Example usage:
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+ghee create Gheefile`,
 	PreRunE: func(cmd *cobra.Command, args []string) error {
-		if len(args) < 1 {
-			return errors.New("Path to Gheefile not provided.")
+		if len(args) != 1 {
+			return errors.New("Expects one path to Gheefile")
 		}
 		return nil
 	},
@@ -38,14 +35,4 @@ to quickly create a Cobra application.`,
 
 func init() {
 	RootCmd.AddCommand(createCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// createCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// createCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
