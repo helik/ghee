@@ -46,7 +46,7 @@ var clusterAddCmd = &cobra.Command{
 	Use:   "add [name]",
 	Short: "Add cluster",
 	Run: func(cmd *cobra.Command, args []string) {
-		if err := controller.AddCluster("cluster", "", []byte("hello")); err != nil {
+		if err := controller.AddCluster("cluster", "http://localhost:3456", []byte("hello")); err != nil {
 			fmt.Println(err)
 		}
 	},
