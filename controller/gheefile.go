@@ -16,6 +16,7 @@ type GheeResource struct {
 
 func ReadGheefile(filepath string) (Gheefile, error) {
 	g := Gheefile{}
+
 	body, err := ioutil.ReadFile(filepath)
 	if err != nil {
 		return g, err
