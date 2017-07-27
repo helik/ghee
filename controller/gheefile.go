@@ -9,9 +9,9 @@ import (
 type Gheefile []GheeResource
 
 type GheeResource struct {
-	Manifest interface{}
+	Manifests [][]byte
 	Clusters []string
-	Replicas map[string]int
+	Replicas map[string]int32
 }
 
 func ReadGheefile(filepath string) (Gheefile, error) {
