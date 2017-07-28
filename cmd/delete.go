@@ -4,33 +4,28 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+
+	"github.com/helik/ghee/controller"
 )
 
 // deleteCmd represents the delete command
 var deleteCmd = &cobra.Command{
-	Use:   "delete",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Use:   "delete [path to Ghee manifest]",
+	Short: "Delete resources",
+	Long: `Deletes resources according to a specified Ghee manifest. It takes one positional argument: a path to a Ghee manifest. Example usage:
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+ghee create Gheefile`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("delete called")
+		path := args[0]
+		gheefile, err := controller.ReadGheeManifest(path)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		controller.Delete(gheefile)
 	},
 }
 
 func init() {
 	RootCmd.AddCommand(deleteCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// deleteCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// deleteCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

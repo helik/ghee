@@ -99,9 +99,9 @@ func (c *cluster) createResource(data []byte, replicaCount int32) {
 		return
 	}
 	if err != nil {
-		log.Println(err)
+		log.Println("Cluster", c.name, "error in creating", t.Kind+":", err)
 	} else {
-		log.Println("Created", t.Kind, newObj.GetName(), "in cluster", c.name)
+		log.Println("Cluster", c.name+":", "created", t.Kind, newObj.GetName())
 	}
 }
 
@@ -112,7 +112,9 @@ func (c *cluster) deleteMany(resources [][]byte) {
 }
 
 func (c *cluster) deleteResource(data []byte) {
-	var obj metav1.ObjectMeta
+	var obj struct {
+		Metadata metav1.ObjectMeta
+	}
 	var t metav1.TypeMeta
 	var err error
 	yaml.Unmarshal(data, &obj)
@@ -181,30 +183,30 @@ func (c *cluster) deleteResource(data []byte) {
 			}
 		}
 	case clusterRole:
-		err = c.rbac.ClusterRoles().Delete(obj.Name, &metav1.DeleteOptions{})
+		err = c.rbac.ClusterRoles().Delete(obj.Metadata.Name, &metav1.DeleteOptions{})
 	case clusterRoleBinding:
-		err = c.rbac.ClusterRoleBindings().Delete(obj.Name, &metav1.DeleteOptions{})
+		err = c.rbac.ClusterRoleBindings().Delete(obj.Metadata.Name, &metav1.DeleteOptions{})
 	case configMap:
-		err = c.core.ConfigMaps(obj.Namespace).Delete(obj.Name, &metav1.DeleteOptions{})
+		err = c.core.ConfigMaps(obj.Metadata.Namespace).Delete(obj.Metadata.Name, &metav1.DeleteOptions{})
 	case namespace:
-		err = c.core.Namespaces().Delete(obj.Name, &metav1.DeleteOptions{})
+		err = c.core.Namespaces().Delete(obj.Metadata.Name, &metav1.DeleteOptions{})
 	case role:
-		err = c.rbac.Roles(obj.Namespace).Delete(obj.Name, &metav1.DeleteOptions{})
+		err = c.rbac.Roles(obj.Metadata.Namespace).Delete(obj.Metadata.Name, &metav1.DeleteOptions{})
 	case roleBinding:
-		err = c.rbac.RoleBindings(obj.Namespace).Delete(obj.Name, &metav1.DeleteOptions{})
+		err = c.rbac.RoleBindings(obj.Metadata.Namespace).Delete(obj.Metadata.Name, &metav1.DeleteOptions{})
 	case secret:
-		err = c.core.Secrets(obj.Namespace).Delete(obj.Name, &metav1.DeleteOptions{})
+		err = c.core.Secrets(obj.Metadata.Namespace).Delete(obj.Metadata.Name, &metav1.DeleteOptions{})
 	case service:
-		err = c.core.Services(obj.Namespace).Delete(obj.Name, &metav1.DeleteOptions{})
+		err = c.core.Services(obj.Metadata.Namespace).Delete(obj.Metadata.Name, &metav1.DeleteOptions{})
 	case serviceAccount:
-		err = c.core.ServiceAccounts(obj.Namespace).Delete(obj.Name, &metav1.DeleteOptions{})
+		err = c.core.ServiceAccounts(obj.Metadata.Namespace).Delete(obj.Metadata.Name, &metav1.DeleteOptions{})
 	default:
 		log.Println("Unknown resource '" + t.Kind + "'")
 		return
 	}
 	if err != nil {
-		log.Println("Cluster", c.name, err)
+		log.Println("Cluster", c.name, "error in deleteting", t.Kind, obj.Metadata.Name+":", err)
 	} else {
-		log.Println("Cluster", c.name, "deleted", t.Kind, obj.Name)
+		log.Println("Cluster", c.name+":", "deleted", t.Kind, obj.Metadata.Name)
 	}
 }
