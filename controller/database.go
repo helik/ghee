@@ -13,37 +13,25 @@ const (
 )
 
 type Cluster struct {
-	ID                   int    `storm:"id,increment"`
-	Name                 string `storm:"unique"`
-	Address              string
-	CertificateAuthority []byte
-	ClientCertificate    []byte
-	ClientKey            []byte
+	ID            int    `storm:"id,increment"` // TODO: yaml should not marshal/unmarshal this
+	Name          string `storm:"unique"`
+	Address       string
+	CertAuthority []byte
+	ClientCert    []byte
+	ClientKey     []byte
 }
 
 // Create and persist a new Kubernetes cluster.
 // name: unique, friendly cluster name
 // address: URL of cluster API
 // certAuthority: PEM-encoded certificate authority
-func AddCluster(name string, address string, certAuthority []byte) error {
-	//c := api.NewCluster()
-
+func AddCluster(c Cluster) error {
 	db, err := storm.Open(dbPath)
 	if err != nil {
 		return err
 	}
 	defer db.Close()
-
-	cluster := Cluster{
-		Name:                 name,
-		Address:              address,
-		CertificateAuthority: certAuthority,
-		ClientCertificate:    []byte("dfd"),
-		ClientKey:            []byte("dfd"),
-	}
-	err = db.Save(&cluster)
-
-	return err
+	return db.Save(&c)
 }
 
 // Get one cluster by its name.
@@ -80,12 +68,12 @@ func (c Cluster) restConfig() (*rest.Config, error) {
 	// make k8s cluster struct
 	cluster := api.NewCluster()
 	cluster.Server = c.Address
-	cluster.CertificateAuthorityData = c.CertificateAuthority
+	cluster.CertificateAuthorityData = c.CertAuthority
 	config.Clusters[c.Name] = cluster
 
 	// make k8s authinfo struct
 	authInfo := api.NewAuthInfo()
-	authInfo.ClientCertificateData = c.ClientCertificate
+	authInfo.ClientCertificateData = c.ClientCert
 	authInfo.ClientKeyData = c.ClientKey
 	config.AuthInfos[c.Name] = authInfo
 
