@@ -35,7 +35,7 @@ func createCluster(config *rest.Config) *cluster {
 	}
 }
 
-func (c *Controller) Create(manifest Gheefile) {
+func (c *Controller) Create(manifest GheeManifest) {
 	for _, resource := range manifest {
 		c.createResource(resource)
 	}

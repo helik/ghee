@@ -8,7 +8,7 @@ import (
 	"github.com/helik/ghee/database"
 )
 
-type Gheefile []GheeResource
+type GheeManifest []GheeResource
 
 type GheeResource struct {
 	Manifests [][]byte
@@ -16,8 +16,8 @@ type GheeResource struct {
 	Replicas  map[string]int32
 }
 
-func ReadGheefile(filepath string) (Gheefile, error) {
-	g := Gheefile{}
+func ReadGheeManifest(filepath string) (GheeManifest, error) {
+	g := GheeManifest{}
 
 	body, err := ioutil.ReadFile(filepath)
 	if err != nil {
