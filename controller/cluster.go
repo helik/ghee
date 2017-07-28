@@ -14,18 +14,18 @@ import (
 	"log"
 )
 
-var (
-	deployment         = apps.Deployment{}.Kind
-	statefulSet        = apps.StatefulSet{}.Kind
-	configMap          = core.ConfigMap{}.Kind
-	namespace          = core.Namespace{}.Kind
-	secret             = core.Secret{}.Kind
-	service            = core.Service{}.Kind
-	serviceAccount     = core.ServiceAccount{}.Kind
-	clusterRole        = rbac.ClusterRole{}.Kind
-	clusterRoleBinding = rbac.ClusterRoleBinding{}.Kind
-	role               = rbac.Role{}.Kind
-	roleBinding        = rbac.RoleBinding{}.Kind
+const (
+	deployment         = "Deployment"
+	statefulSet        = "StatefulSet"
+	configMap          = "ConfigMap"
+	namespace          = "Namespace"
+	secret             = "Secret"
+	service            = "Service"
+	serviceAccount     = "ServiceAccount"
+	clusterRole        = "ClusterRole"
+	clusterRoleBinding = "ClusterRoleBinding"
+	role               = "Role"
+	roleBinding        = "RoleBinding"
 )
 
 type cluster struct {

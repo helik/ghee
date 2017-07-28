@@ -12,20 +12,28 @@ type Controller struct {
 }
 
 func Create(manifest Gheefile) {
-	c := makeController(manifest)
+	c, err := makeController(manifest)
+	if err != nil {
+		log.Println(err)
+		return
+	}
 	for _, resource := range manifest {
 		c.createResource(resource)
 	}
 }
 
 func Delete(manifest Gheefile) {
-	c := makeController(manifest)
+	c, err := makeController(manifest)
+	if err != nil {
+		log.Println(err)
+		return
+	}
 	for _, resource := range manifest {
 		c.deleteResource(resource)
 	}
 }
 
-func makeController(manifest Gheefile) *Controller {
+func makeController(manifest Gheefile) (*Controller, error) {
 	controller := Controller{
 		clusters: make(map[string]*cluster),
 	}
@@ -33,13 +41,19 @@ func makeController(manifest Gheefile) *Controller {
 	for _, resource := range manifest {
 		for _, clusterName := range resource.Clusters {
 			if _, present := controller.clusters[clusterName]; !present {
-				// TODO get config from db
-				config := rest.Config{}
-				controller.clusters[clusterName] = createCluster(clusterName, &config)
+				clusterInfo, err := GetCluster(clusterName)
+				if err != nil {
+					return nil, err
+				}
+				config, err := clusterInfo.restConfig()
+				if err != nil {
+					return nil, err
+				}
+				controller.clusters[clusterName] = createCluster(clusterName, config)
 			}
 		}
 	}
-	return &controller
+	return &controller, nil
 }
 
 func createCluster(name string, config *rest.Config) *cluster {

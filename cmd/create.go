@@ -29,7 +29,7 @@ ghee create Gheefile`,
 			fmt.Println(err)
 			return
 		}
-		fmt.Printf("%+v", gheefile)
+		controller.Create(gheefile)
 	},
 }
 
