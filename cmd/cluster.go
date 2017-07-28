@@ -14,7 +14,9 @@
 package cmd
 
 import (
+	"bytes"
 	"fmt"
+	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
@@ -24,7 +26,7 @@ import (
 // clusterCmd represents the cluster command
 var clusterCmd = &cobra.Command{
 	Use:   "cluster",
-	Short: "Add and get clusters",
+	Short: "Add and list clusters",
 }
 
 var clusterListCmd = &cobra.Command{
@@ -36,20 +38,40 @@ var clusterListCmd = &cobra.Command{
 			fmt.Println(err)
 			return
 		}
-		for _, cluster := range clusters {
-			fmt.Printf("%v\n", cluster.Name)
+		if len(clusters) == 0 {
+			fmt.Println("No clusters.")
+			return
 		}
+
+		// write clusters in nice table
+		w := tabwriter.Writer{}
+		buf := bytes.Buffer{}
+		w.Init(&buf, 0, 8, 4, ' ', 0)
+		fmt.Fprintf(&w, "Name\tAddress\n") // table header
+		for _, cluster := range clusters {
+			fmt.Fprintf(&w, "%v\t%v\n", cluster.Name, cluster.Address)
+		}
+		w.Flush()
+		fmt.Print(buf.String())
 	},
 }
 
 var clusterAddCmd = &cobra.Command{
-	Use:   "add [name]",
+	Use:   "add [path to Ghee cluster file]",
 	Short: "Add cluster",
 	Run: func(cmd *cobra.Command, args []string) {
-		if err := controller.AddCluster("cluster", "", []byte("hello")); err != nil {
+		path := args[0]
+		cluster, err := controller.ReadGheeClusterFile(path)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		if err := controller.AddCluster(cluster); err != nil {
 			fmt.Println(err)
 		}
 	},
+	Args: cobra.ExactArgs(1),
 }
 
 var clusterRemoveCmd = &cobra.Command{
