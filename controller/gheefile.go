@@ -48,7 +48,7 @@ func ReadGheeClusterFile(filepath string) (database.Cluster, error) {
 	return c, nil
 }
 
-func (gf *Gheefile) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (gf *GheeManifest) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var aux []struct {
 		Manifests []interface{}
 		Clusters  []string

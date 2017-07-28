@@ -5,13 +5,15 @@ import (
 	"k8s.io/client-go/rest"
 	"log"
 	"sync"
+
+	"github.com/helik/ghee/database"
 )
 
 type Controller struct {
 	clusters map[string]*cluster
 }
 
-func Create(manifest Gheefile) {
+func Create(manifest GheeManifest) {
 	c, err := makeController(manifest)
 	if err != nil {
 		log.Println(err)
@@ -22,7 +24,7 @@ func Create(manifest Gheefile) {
 	}
 }
 
-func Delete(manifest Gheefile) {
+func Delete(manifest GheeManifest) {
 	c, err := makeController(manifest)
 	if err != nil {
 		log.Println(err)
@@ -33,7 +35,7 @@ func Delete(manifest Gheefile) {
 	}
 }
 
-func makeController(manifest Gheefile) (*Controller, error) {
+func makeController(manifest GheeManifest) (*Controller, error) {
 	controller := Controller{
 		clusters: make(map[string]*cluster),
 	}
@@ -41,11 +43,11 @@ func makeController(manifest Gheefile) (*Controller, error) {
 	for _, resource := range manifest {
 		for _, clusterName := range resource.Clusters {
 			if _, present := controller.clusters[clusterName]; !present {
-				clusterInfo, err := GetCluster(clusterName)
+				clusterInfo, err := database.GetCluster(clusterName)
 				if err != nil {
 					return nil, err
 				}
-				config, err := clusterInfo.restConfig()
+				config, err := clusterInfo.RestConfig()
 				if err != nil {
 					return nil, err
 				}

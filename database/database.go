@@ -62,7 +62,7 @@ func GetClusters() ([]Cluster, error) {
 	return clusters, nil
 }
 
-func (c Cluster) restConfig() (*rest.Config, error) {
+func (c Cluster) RestConfig() (*rest.Config, error) {
 	config := *api.NewConfig()
 
 	// make k8s cluster struct
