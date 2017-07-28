@@ -4,6 +4,8 @@ import (
 	"io/ioutil"
 
 	"gopkg.in/yaml.v2"
+
+	"github.com/helik/ghee/database"
 )
 
 type Gheefile []GheeResource
@@ -30,8 +32,8 @@ func ReadGheefile(filepath string) (Gheefile, error) {
 	return g, nil
 }
 
-func ReadGheeClusterFile(filepath string) (Cluster, error) {
-	c := Cluster{}
+func ReadGheeClusterFile(filepath string) (database.Cluster, error) {
+	c := database.Cluster{}
 
 	body, err := ioutil.ReadFile(filepath)
 	if err != nil {
