@@ -21,6 +21,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/helik/ghee/controller"
+	"github.com/helik/ghee/database"
 )
 
 // clusterCmd represents the cluster command
@@ -33,7 +34,7 @@ var clusterListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List clusters",
 	Run: func(cmd *cobra.Command, args []string) {
-		clusters, err := controller.GetClusters()
+		clusters, err := database.GetClusters()
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -67,7 +68,7 @@ var clusterAddCmd = &cobra.Command{
 			return
 		}
 
-		if err := controller.AddCluster(cluster); err != nil {
+		if err := database.AddCluster(cluster); err != nil {
 			fmt.Println(err)
 		}
 	},

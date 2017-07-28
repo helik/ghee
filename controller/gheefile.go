@@ -4,9 +4,11 @@ import (
 	"io/ioutil"
 
 	"gopkg.in/yaml.v2"
+
+	"github.com/helik/ghee/database"
 )
 
-type Gheefile []GheeResource
+type GheeManifest []GheeResource
 
 type GheeResource struct {
 	Manifests [][]byte
@@ -14,8 +16,8 @@ type GheeResource struct {
 	Replicas  map[string]int32
 }
 
-func ReadGheefile(filepath string) (Gheefile, error) {
-	g := Gheefile{}
+func ReadGheeManifest(filepath string) (GheeManifest, error) {
+	g := GheeManifest{}
 
 	body, err := ioutil.ReadFile(filepath)
 	if err != nil {
@@ -30,8 +32,8 @@ func ReadGheefile(filepath string) (Gheefile, error) {
 	return g, nil
 }
 
-func ReadGheeClusterFile(filepath string) (Cluster, error) {
-	c := Cluster{}
+func ReadGheeClusterFile(filepath string) (database.Cluster, error) {
+	c := database.Cluster{}
 
 	body, err := ioutil.ReadFile(filepath)
 	if err != nil {

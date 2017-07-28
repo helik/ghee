@@ -1,4 +1,4 @@
-package controller
+package database
 
 import (
 	"github.com/asdine/storm"
