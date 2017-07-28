@@ -78,6 +78,14 @@ var clusterAddCmd = &cobra.Command{
 var clusterRemoveCmd = &cobra.Command{
 	Use:   "remove [name]",
 	Short: "Remove cluster",
+	Run: func(cmd *cobra.Command, args []string) {
+		name := args[0]
+		err := database.RemoveCluster(name)
+		if err != nil {
+			fmt.Println(err)
+		}
+	},
+	Args: cobra.ExactArgs(1),
 }
 
 func init() {

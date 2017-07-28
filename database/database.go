@@ -41,12 +41,28 @@ func GetCluster(name string) (Cluster, error) {
 	if err != nil {
 		return cluster, err
 	}
+	defer db.Close()
 
 	err = db.One("Name", name, &cluster)
 	if err != nil {
 		return cluster, err
 	}
 	return cluster, nil
+}
+
+func RemoveCluster(name string) error {
+	cluster, err := GetCluster(name)
+	if err != nil {
+		return err
+	}
+
+	db, err := storm.Open(dbPath)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	return db.DeleteStruct(&cluster)
 }
 
 // Get a slice of all clusters.
