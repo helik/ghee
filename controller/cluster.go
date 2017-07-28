@@ -6,6 +6,7 @@ import (
 	core "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	appsv1beta1 "k8s.io/client-go/kubernetes/typed/apps/v1beta1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -13,21 +14,22 @@ import (
 	"log"
 )
 
-const (
-	clusterRole        = "ClusterRole"
-	clusterRoleBinding = "ClusterRoleBinding"
-	configMap          = "ConfigMap"
-	deployment         = "Deployment"
-	namespace          = "Namespace"
-	role               = "Role"
-	roleBinding        = "RoleBinding"
-	secret             = "Secret"
-	service            = "Service"
-	serviceAccount     = "ServiceAccount"
-	statefulSet        = "StatefulSet"
+var (
+	deployment         = apps.Deployment{}.Kind
+	statefulSet        = apps.StatefulSet{}.Kind
+	configMap          = core.ConfigMap{}.Kind
+	namespace          = core.Namespace{}.Kind
+	secret             = core.Secret{}.Kind
+	service            = core.Service{}.Kind
+	serviceAccount     = core.ServiceAccount{}.Kind
+	clusterRole        = rbac.ClusterRole{}.Kind
+	clusterRoleBinding = rbac.ClusterRoleBinding{}.Kind
+	role               = rbac.Role{}.Kind
+	roleBinding        = rbac.RoleBinding{}.Kind
 )
 
 type cluster struct {
+	name      string
 	clientSet *kubernetes.Clientset
 	apps      appsv1beta1.AppsV1beta1Interface
 	core      corev1.CoreV1Interface
@@ -42,13 +44,10 @@ func (c *cluster) createMany(resources [][]byte, replicaCount int32) {
 
 func (c *cluster) createResource(data []byte, replicaCount int32) {
 	var newObj metav1.Object
+	var t metav1.TypeMeta
 	var err error
-	var t struct {
-		Kind string
-	}
 	yaml.Unmarshal(data, &t)
 	switch t.Kind {
-	// have a replica count
 	case deployment:
 		d := apps.Deployment{}
 		yaml.Unmarshal(data, &d)
@@ -59,7 +58,6 @@ func (c *cluster) createResource(data []byte, replicaCount int32) {
 		yaml.Unmarshal(data, &ss)
 		ss.Spec.Replicas = &replicaCount
 		newObj, err = c.apps.StatefulSets(ss.Namespace).Create(&ss)
-		// do not have a replica count
 	case clusterRole:
 		cr := rbac.ClusterRole{}
 		yaml.Unmarshal(data, &cr)
@@ -103,6 +101,110 @@ func (c *cluster) createResource(data []byte, replicaCount int32) {
 	if err != nil {
 		log.Println(err)
 	} else {
-		log.Println("Created", newObj.GetName(), "in cluster", newObj.GetClusterName())
+		log.Println("Created", t.Kind, newObj.GetName(), "in cluster", c.name)
+	}
+}
+
+func (c *cluster) deleteMany(resources [][]byte) {
+	for _, resource := range resources {
+		c.deleteResource(resource)
+	}
+}
+
+func (c *cluster) deleteResource(data []byte) {
+	var obj metav1.ObjectMeta
+	var t metav1.TypeMeta
+	var err error
+	yaml.Unmarshal(data, &obj)
+	yaml.Unmarshal(data, &t)
+	switch t.Kind {
+	case deployment:
+		d := apps.Deployment{}
+		yaml.Unmarshal(data, &d)
+		deleteOptions := metav1.DeleteOptions{
+			GracePeriodSeconds: d.Spec.Template.Spec.TerminationGracePeriodSeconds,
+		}
+		err = c.apps.Deployments(d.Namespace).Delete(d.Name, &deleteOptions)
+	case statefulSet:
+		ss := apps.StatefulSet{}
+		yaml.Unmarshal(data, &ss)
+		// get pods created by the statefulset & get their pvcs
+		ssPods := map[string]int{}
+		pvcs := []string{}
+		// TODO use list options to reduce # of pods returned
+		pods, err := c.core.Pods(ss.Namespace).List(metav1.ListOptions{})
+		if err != nil {
+			break
+		}
+		for _, pod := range pods.Items {
+			for _, owner := range pod.OwnerReferences {
+				if owner.Kind == statefulSet && owner.Name == ss.Name {
+					ssPods[pod.Name] = 1
+					for _, vol := range pod.Spec.Volumes {
+						pvcs = append(pvcs, vol.VolumeSource.PersistentVolumeClaim.ClaimName)
+					}
+					break
+				}
+			}
+		}
+		deleteOptions := metav1.DeleteOptions{
+			GracePeriodSeconds: ss.Spec.Template.Spec.TerminationGracePeriodSeconds,
+		}
+		err = c.apps.StatefulSets(ss.Namespace).Delete(ss.Name, &deleteOptions)
+		if err != nil {
+			break
+		}
+		// need to wait for pods to be delete before we can delete the pvcs
+		watcher, err := c.core.Pods(ss.Namespace).Watch(metav1.ListOptions{})
+		if err != nil {
+			break
+		}
+		for {
+			if len(ssPods) <= 0 {
+				break
+			}
+			select {
+			case event := <-watcher.ResultChan():
+				if event.Type == watch.Deleted {
+					name := event.Object.(*core.Pod).Name
+					if _, present := ssPods[name]; present {
+						delete(ssPods, name)
+					}
+				}
+			}
+		}
+		// delete pvcs
+		for _, pvc := range pvcs {
+			err = c.core.PersistentVolumeClaims(ss.Namespace).Delete(pvc, &metav1.DeleteOptions{})
+			if err != nil {
+				break
+			}
+		}
+	case clusterRole:
+		err = c.rbac.ClusterRoles().Delete(obj.Name, &metav1.DeleteOptions{})
+	case clusterRoleBinding:
+		err = c.rbac.ClusterRoleBindings().Delete(obj.Name, &metav1.DeleteOptions{})
+	case configMap:
+		err = c.core.ConfigMaps(obj.Namespace).Delete(obj.Name, &metav1.DeleteOptions{})
+	case namespace:
+		err = c.core.Namespaces().Delete(obj.Name, &metav1.DeleteOptions{})
+	case role:
+		err = c.rbac.Roles(obj.Namespace).Delete(obj.Name, &metav1.DeleteOptions{})
+	case roleBinding:
+		err = c.rbac.RoleBindings(obj.Namespace).Delete(obj.Name, &metav1.DeleteOptions{})
+	case secret:
+		err = c.core.Secrets(obj.Namespace).Delete(obj.Name, &metav1.DeleteOptions{})
+	case service:
+		err = c.core.Services(obj.Namespace).Delete(obj.Name, &metav1.DeleteOptions{})
+	case serviceAccount:
+		err = c.core.ServiceAccounts(obj.Namespace).Delete(obj.Name, &metav1.DeleteOptions{})
+	default:
+		log.Println("Unknown resource '" + t.Kind + "'")
+		return
+	}
+	if err != nil {
+		log.Println("Cluster", c.name, err)
+	} else {
+		log.Println("Cluster", c.name, "deleted", t.Kind, obj.Name)
 	}
 }
