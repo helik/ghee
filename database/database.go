@@ -1,6 +1,7 @@
 package database
 
 import (
+	"encoding/base64"
 	"github.com/asdine/storm"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -16,9 +17,51 @@ type Cluster struct {
 	ID            int    `storm:"id,increment"` // TODO: yaml should not marshal/unmarshal this
 	Name          string `storm:"unique"`
 	Address       string
-	CertAuthority []byte
-	ClientCert    []byte
-	ClientKey     []byte
+	CertAuthority []byte `yaml:"certAuthority"`
+	ClientCert    []byte `yaml:"clientCert"`
+	ClientKey     []byte `yaml:"clientKey"`
+}
+
+// the certs should be []byte, but yaml requires us to read them as strings
+// and then convert them
+func (c *Cluster) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var aux struct {
+		Name          string
+		Address       string
+		CertAuthority string `yaml:"certAuthority"`
+		ClientCert    string `yaml:"clientCert"`
+		ClientKey     string `yaml:"clientKey"`
+	}
+	if err := unmarshal(&aux); err != nil {
+		return err
+	}
+
+	cluster := &Cluster{
+		Name:    aux.Name,
+		Address: aux.Address,
+	}
+
+	ca, err := base64.StdEncoding.DecodeString(aux.CertAuthority)
+	if err != nil {
+		return err
+	}
+	cluster.CertAuthority = ca
+
+	cert, err := base64.StdEncoding.DecodeString(aux.ClientCert)
+	if err != nil {
+		return err
+	}
+	cluster.ClientCert = cert
+
+	key, err := base64.StdEncoding.DecodeString(aux.ClientKey)
+	if err != nil {
+		return err
+	}
+	cluster.ClientKey = key
+
+	*c = *cluster
+
+	return nil
 }
 
 // Create and persist a new Kubernetes cluster.
@@ -97,7 +140,7 @@ func (c Cluster) RestConfig() (*rest.Config, error) {
 	context := api.NewContext()
 	context.Cluster = c.Name
 	context.AuthInfo = c.Name
-	context.Namespace = "default" // TODO: probably needs to be configurable
+	context.Namespace = "default"
 	config.Contexts[c.Name] = context
 
 	// set current context to the previous (only) context
@@ -106,5 +149,6 @@ func (c Cluster) RestConfig() (*rest.Config, error) {
 	// get rest.Config
 	clientConfig := clientcmd.NewDefaultClientConfig(config, &clientcmd.ConfigOverrides{})
 	restConfig, err := clientConfig.ClientConfig()
+
 	return restConfig, err
 }

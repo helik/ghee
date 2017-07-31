@@ -105,3 +105,7 @@ func getWithDefault(replicas map[string]int32, key string, defaultVal int32) int
 	}
 	return defaultVal
 }
+
+func init() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+}
