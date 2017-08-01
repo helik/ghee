@@ -35,6 +35,17 @@ func Delete(manifest GheeManifest) {
 	}
 }
 
+func Update(manifest GheeManifest) {
+	c, err := makeController(manifest)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	for _, resource := range manifest {
+		c.updateResource(resource)
+	}
+}
+
 func makeController(manifest GheeManifest) (*Controller, error) {
 	controller := Controller{
 		clusters: make(map[string]*cluster),
@@ -77,10 +88,10 @@ func (c *Controller) createResource(resource GheeResource) {
 	wg := sync.WaitGroup{}
 	wg.Add(len(resource.Clusters))
 	for _, clusterName := range resource.Clusters {
-		go func(cluster *cluster) {
-			cluster.createMany(resource.Manifests, getWithDefault(resource.Replicas, clusterName, 1))
+		go func(name string, cluster *cluster) {
+			cluster.createMany(resource.Manifests, getWithDefault(resource.Replicas, name, 1))
 			wg.Done()
-		}(c.clusters[clusterName])
+		}(clusterName, c.clusters[clusterName])
 	}
 	wg.Wait()
 }
@@ -93,6 +104,18 @@ func (c *Controller) deleteResource(resource GheeResource) {
 			cluster.deleteMany(resource.Manifests)
 			wg.Done()
 		}(c.clusters[clusterName])
+	}
+	wg.Wait()
+}
+
+func (c *Controller) updateResource(resource GheeResource) {
+	wg := sync.WaitGroup{}
+	wg.Add(len(resource.Clusters))
+	for _, clusterName := range resource.Clusters {
+		go func(name string, cluster *cluster) {
+			cluster.updateMany(resource.Manifests, getWithDefault(resource.Replicas, name, 1))
+			wg.Done()
+		}(clusterName, c.clusters[clusterName])
 	}
 	wg.Wait()
 }
