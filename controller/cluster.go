@@ -126,7 +126,7 @@ func (c *cluster) deleteResource(data []byte) {
 		propagation := metav1.DeletePropagationForeground
 		deleteOptions := metav1.DeleteOptions{
 			GracePeriodSeconds: d.Spec.Template.Spec.TerminationGracePeriodSeconds,
-			PropagationPolicy: &propagation,
+			PropagationPolicy:  &propagation,
 		}
 		err = c.apps.Deployments(d.Namespace).Delete(d.Name, &deleteOptions)
 	case statefulSet:
@@ -157,19 +157,19 @@ func (c *cluster) deleteResource(data []byte) {
 		propagation := metav1.DeletePropagationForeground
 		deleteOptions := metav1.DeleteOptions{
 			GracePeriodSeconds: ss.Spec.Template.Spec.TerminationGracePeriodSeconds,
-			PropagationPolicy: &propagation,
+			PropagationPolicy:  &propagation,
 		}
 		err = c.apps.StatefulSets(ss.Namespace).Delete(ss.Name, &deleteOptions)
 		if err != nil {
 			break
 		}
-		log.Println("Cluster", c.name + ":", "deleted StatefulSet", ss.Name)
+		log.Println("Cluster", c.name+":", "deleted StatefulSet", ss.Name)
 		// need to wait for pods to be delete before we can delete the pvcs
 		ssPodsKeys := []string{}
 		for key, _ := range ssPods {
 			ssPodsKeys = append(ssPodsKeys, key)
 		}
-		log.Println("Cluster", c.name + ":", "watching for pods", ssPodsKeys, "to be deleted")
+		log.Println("Cluster", c.name+":", "watching for pods", ssPodsKeys, "to be deleted")
 		var watcher watch.Interface
 		watcher, err = c.core.Pods(ss.Namespace).Watch(metav1.ListOptions{})
 		if err != nil {
@@ -186,7 +186,7 @@ func (c *cluster) deleteResource(data []byte) {
 					name := event.Object.(*core.Pod).Name
 					if _, present := ssPods[name]; present {
 						delete(ssPods, name)
-						log.Println("Cluster", c.name + ":", "Pod", name, "deleted")
+						log.Println("Cluster", c.name+":", "Pod", name, "deleted")
 					}
 				}
 			}
@@ -197,7 +197,7 @@ func (c *cluster) deleteResource(data []byte) {
 			if err != nil {
 				break
 			}
-			log.Println("Cluster", c.name + ":", "pvc", pvc, "deleted")
+			log.Println("Cluster", c.name+":", "pvc", pvc, "deleted")
 		}
 	case clusterRole:
 		err = c.rbac.ClusterRoles().Delete(obj.Metadata.Name, &metav1.DeleteOptions{})
@@ -224,7 +224,7 @@ func (c *cluster) deleteResource(data []byte) {
 	if err != nil {
 		log.Println("Cluster", c.name, "error in deleting", t.Kind, obj.Metadata.Name+":", err)
 	} else {
-		log.Println("Cluster", c.name + ":", "deleted", t.Kind, obj.Metadata.Name)
+		log.Println("Cluster", c.name+":", "deleted", t.Kind, obj.Metadata.Name)
 	}
 }
 
@@ -248,9 +248,55 @@ func (c *cluster) updateResource(data []byte, replicaCount int32) {
 	case statefulSet:
 		var ss apps.StatefulSet
 		yaml.Unmarshal(data, &ss)
+		var currentSS *apps.StatefulSet
+		currentSS, err = c.apps.StatefulSets(ss.Namespace).Get(ss.Name, metav1.GetOptions{})
+		remaining := *currentSS.Spec.Replicas - replicaCount
 		ss.Spec.Replicas = &replicaCount
 		newObj, err = c.apps.StatefulSets(ss.Namespace).Update(&ss)
-		// TODO: watch for deleted pods, get their pvcs, delete them
+		if err != nil {
+			break
+		}
+		// watch for deleted pods, get their pvcs, delete them
+		var watcher watch.Interface
+		watcher, err = c.core.Pods(ss.Namespace).Watch(metav1.ListOptions{})
+		if err != nil {
+			break
+		}
+		if remaining > 0 {
+			log.Println("Cluster", c.name+":", "watching for", remaining, "pods to be deleted")
+		}
+		pvcs := []string{}
+		for {
+			// assumption: after the-difference-in-replica-count pods are deleted, the statefulset is up to date
+			if remaining <= 0 {
+				watcher.Stop()
+				break
+			}
+			select {
+			case event := <-watcher.ResultChan():
+				if event.Type == watch.Deleted {
+					pod := event.Object.(*core.Pod)
+					for _, owner := range pod.OwnerReferences {
+						if owner.Kind == statefulSet && owner.Name == ss.Name {
+							remaining--
+							log.Println("Cluster", c.name+":", "Pod", pod.Name, "deleted")
+							for _, vol := range pod.Spec.Volumes {
+								if vol.VolumeSource.PersistentVolumeClaim != nil {
+									pvcs = append(pvcs, vol.VolumeSource.PersistentVolumeClaim.ClaimName)
+								}
+							}
+							break
+						}
+					}
+				}
+			}
+		}
+		for _, pvc := range pvcs {
+			c.core.PersistentVolumeClaims(ss.Namespace).Delete(pvc, &metav1.DeleteOptions{})
+			if err != nil {
+				break
+			}
+		}
 	case clusterRole:
 		cr := rbac.ClusterRole{}
 		yaml.Unmarshal(data, &cr)
@@ -296,6 +342,6 @@ func (c *cluster) updateResource(data []byte, replicaCount int32) {
 	if err != nil {
 		log.Println("Cluster", c.name, "error in updating", t.Kind+":", err)
 	} else {
-		log.Println("Cluster", c.name + ":", "updated", t.Kind, newObj.GetName())
+		log.Println("Cluster", c.name+":", "updated", t.Kind, newObj.GetName())
 	}
 }
